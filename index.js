@@ -1,12 +1,18 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const bodyParser = require('body-parser');
+const express = require('express')
+const bcrypt = require('bcryptjs')
+const bodyParser = require('body-parser')
+const cors = require('cors')
 
-const app = express();
+const app = express()
 
-app.use(bodyParser.json());
+app.use(bodyParser.json())
+app.use(cors())
 
-let usuarios = [];
+let usuarios = [
+    { id: 1, username: "user", password: bcrypt.hashSync("password", 10) },
+    { id: 2, username: "user2", password: bcrypt.hashSync("password2", 10) },
+    { id: 3, username: "user3", password: bcrypt.hashSync("password3", 10) },
+];
 
 const port = 3001;
 
@@ -32,7 +38,7 @@ app.post('/register', async (req, res) => {
 
 // Ruta para login
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;  
+    const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ message: 'Faltan datos en el login' });
     }
