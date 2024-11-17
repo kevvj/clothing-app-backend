@@ -58,7 +58,7 @@ app.post('/register', async (req, res) => {
         const FullName = firstName + " " + lastName;
         const DateToday = new Date().toISOString().split('T')[0];
 
-        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro) VALUES (?, ?, ?, ?, ?, ?)';
+        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro) VALUES (?, ?, ?, ?, ?, ?)'
 
         db.query(insertQuery, [username, hashedPassword, FullName, email, null, DateToday], (err, result) => {
             if (err) {
@@ -79,17 +79,31 @@ app.post('/login', async (req, res) => {
         return res.status(400).json({ message: 'Faltan datos en el login' });
     }
 
-    const usuario = usuarios.find(user => user.username === username);
-    if (!usuario) {
-        return res.status(400).json({ message: 'Usuario no encontrado.' });
-    }
+    const query = 'SELECT * FROM cliente WHERE nombre_usuario = ?';
 
-    const esValida = await bcrypt.compare(password, usuario.password);
-    if (!esValida) {
-        return res.status(401).json({ message: 'Contraseña incorrecta' });
-    }
-    res.status(200).json({ message: 'Login exitoso.' });
-});
+    db.query(query, [username], async (err, result) => {
+        if (err) {
+            console.error('Error al ejecutar la consulta de selección:', err.message);
+            return res.status(500).json({ message: 'Error en la consulta de la base de datos.' })
+        }
+
+        if (result.length > 0) {
+
+            const user = result[0];
+            const isMatch = await bcrypt.compare(password, user.contraseña)
+
+            if (isMatch) {
+                res.status(200).json({ message: 'Login exitoso.' })
+            } else {
+                return res.status(401).json({ message: 'Contraseña incorrecta' })
+            }
+
+        } else {
+            return res.status(400).json({ message: 'Usuario no encontrado.' })
+        }
+    })
+
+})
 
 
 app.listen(port, () => {
