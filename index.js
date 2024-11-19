@@ -5,11 +5,9 @@ const cors = require('cors')
 const mysql = require('mysql2')
 const multer = require('multer')
 const path = require('path')
-
-// Crear la instancia de la aplicación de Express
 const app = express()
 
-// Configuración de rutas estáticas para subir archivos
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 const db = mysql.createConnection({
@@ -42,27 +40,73 @@ app.get('/', (req, res) => {
     res.send('¡Bienvenido a la Api de login y registro!');
 })
 
-app.post('/register', async (req, res) => {
-    const { username, password, firstName, lastName, email } = req.body;
-    if (!username || !password || !firstName || !lastName || !email) {
-        return res.status(400).json({ message: 'Faltan datos en el registro.' });
+app.post('/user/upload/password/:id', async (req, res) => {
+    const id = req.params.id
+    const { newPassword, password } = req.body
+
+    if (!password) {
+        return res.status(400).json({ message: 'Es necesario proporcionar la contraseña actual' })
     }
 
-    const query = 'SELECT * FROM cliente WHERE nombre_usuario = ?';
+    if (!newPassword) {
+        return res.status(400).json({ message: 'Es necesario proporcionar la nueva contraseña' })
+    }
+
+    const query = 'SELECT * FROM cliente WHERE id_cliente = ?'
+
+    db.query(query, [id], async (err, result) => {
+        if (err) {
+            console.error('Error al ejecutar la consulta de selección:', err.message)
+            return res.status(500).json({ message: 'Error en la consulta de la base de datos' })
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado' })
+        }
+
+        const user = result[0]
+        const isMatch = await bcrypt.compare(password, user.contraseña)
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'La contraseña actual es incorrecta' })
+        }
+
+        const updateQuery = 'UPDATE cliente SET contraseña = ? WHERE id_cliente = ?'
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+        db.query(updateQuery, [hashedPassword, id], (err) => {
+            if (err) {
+                console.error('Error al actualizar la contraseña:', err)
+                return res.status(500).json({ message: 'Error al intentar cambiar la contraseña' })
+            }
+
+            return res.status(200).json({ message: 'Contraseña cambiada con éxito' })
+        })
+    })
+})
+
+
+app.post('/register', async (req, res) => {
+    const { username, password, firstName, lastName, email } = req.body
+    if (!username || !password || !firstName || !lastName || !email) {
+        return res.status(400).json({ message: 'Faltan datos en el registro.' })
+    }
+
+    const query = 'SELECT * FROM cliente WHERE nombre_usuario = ?'
 
     db.query(query, [username], async (err, result) => {
         if (err) {
-            console.error('Error al ejecutar la consulta de selección:', err.message);
-            return res.status(500).json({ message: 'Error en la consulta de la base de datos.' });
+            console.error('Error al ejecutar la consulta de selección:', err.message)
+            return res.status(500).json({ message: 'Error en la consulta de la base de datos.' })
         }
 
         if (result.length > 0) {
             return res.status(400).json({ message: 'El usuario ya existe.' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const FullName = firstName + " " + lastName;
-        const DateToday = new Date().toISOString().split('T')[0];
+        const hashedPassword = await bcrypt.hash(password, 10)
+        const FullName = firstName + " " + lastName
+        const DateToday = new Date().toISOString().split('T')[0]
 
         const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro) VALUES (?, ?, ?, ?, ?, ?)'
 
