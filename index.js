@@ -146,9 +146,11 @@ app.post('/login', async (req, res) => {
                     username: user.nombre_usuario,
                     name: user.nombre,
                     email: user.email,
-                    registration_date: user.fecha_registro
+                    registration_date: user.fecha_registro,
+                    porfilepic: user.foto_perfil
                 }
                 res.status(200).json({ message: 'Login exitoso.', user: userData })
+
             } else {
                 return res.status(401).json({ message: 'Contraseña incorrecta' })
             }
@@ -195,6 +197,37 @@ app.post('/upload', upload.single('file-upload'), (req, res) => {
     })
 })
 
+app.post('/update', (req, res) => {
+    const { clientId, field, newValue } = req.body
+
+    if (!clientId || !field || !newValue) {
+        return res.status(400).json({ message: 'Missing required parameters.' })
+    }
+
+    const validFields = ['name', 'email', 'phone']
+    if (!validFields.includes(field)) {
+        return res.status(400).json({ message: 'Invalid field.' })
+    }
+
+    const updateQuery = `UPDATE client SET ?? = ? WHERE client_id = ?`
+
+    db.query(updateQuery, [field, newValue, clientId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error updating the database', error: err })
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Client not found.' })
+        }
+
+        res.status(200).json({ message: 'Information updated successfully.' })
+    })
+})
+
+
 app.listen(port, () => {
-    console.log(`Servidor corriendo en http://localhost:${port}`);
+    console.log(`Servidor corriendo en http://localhost:${port}`)
+
+
+
 })
