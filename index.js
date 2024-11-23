@@ -237,16 +237,51 @@ app.get('/products', (req, res) => {
     })
 })
 
+app.post('/cart', (req, res) => {
+    const { id_cliente } = req.body
+
+    if (!id_cliente) {
+        return res.status(400).json({ message: 'Se requiere el ID del cliente' })
+    }
+
+    const query = `
+        SELECT 
+            carrito.id_carrito,
+            producto.id_producto,
+            producto.nombre AS nombre_producto,
+            producto.descripcion,
+            producto.precio,
+            carrito.cantidad,
+            producto.imagen,
+            carrito.fecha_agregado
+        FROM 
+            carrito
+        INNER JOIN 
+            producto 
+        ON 
+            carrito.id_producto = producto.id_producto
+        WHERE 
+            carrito.id_cliente = ?`
+
+    db.query(query, [id_cliente], (err, results) => {
+        if (err) {
+            console.error('Error al consultar el carrito:', err)
+            return res.status(500).json({ message: 'Error al consultar el carrito' })
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'El carrito está vacío o el cliente no existe' })
+        }
+
+        res.status(200).json({
+            message: 'Carrito obtenido con éxito',
+            cart: results
+        })
+    })
+})
+
+
 
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`)
 })
-
-let products = [
-
-    { id: 1, name: "Straps", price: 4.99, image: "https://suplementosolimpicos.com/wp-content/uploads/2022/08/STRAPS-3.png", description: "", category: "" },
-    { id: 2, name: "Zapatos deportivos", price: 49.99, image: "https://ae01.alicdn.com/kf/S43619d07a6204d7dba3bb3d4be5c7c76T/Zapatillas-de-deporte-de-moda-para-hombre-zapatos-casuales-para-gimnasio-trotar-tenis-entrenador-planos-suaves.jpg", description: "", category: "" },
-    { id: 3, name: "Camiseta de compresion", price: 30.99, image: "https://s7d7.scene7.com/is/image/GTMSportswear/2611TU?qlt=80,0&resMode=sharp2&fmt=png-alpha&hei=500&wid=500&layer=1&op_colorize=181818", description: "", category: "" },
-    { id: 4, name: "Cinturon", price: 70.99, image: "https://gravityec.com/wp-content/uploads/2024/01/CPN.webp", description: "", category: "" },
-    { id: 5, name: "Camiseta Blanca Poison", price: 999.99, image: "https://images-na.ssl-images-amazon.com/images/I/51dRXn4pwdS._AC_UL600_SR600,600_.jpg", description: "", category: "" },
-]
