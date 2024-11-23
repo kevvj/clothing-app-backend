@@ -108,9 +108,9 @@ app.post('/register', async (req, res) => {
         const FullName = firstName + " " + lastName
         const DateToday = new Date().toISOString().split('T')[0]
 
-        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro) VALUES (?, ?, ?, ?, ?, ?)'
+        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?, ?)'
 
-        db.query(insertQuery, [username, hashedPassword, FullName, email, null, DateToday], (err, result) => {
+        db.query(insertQuery, [username, hashedPassword, FullName, email, null, DateToday, "comun"], (err, result) => {
             if (err) {
                 console.error('Error al ejecutar la consulta de inserción:', err.message);
                 return res.status(500).json({ message: 'Error al registrar el usuario', error: err.message });
@@ -204,12 +204,12 @@ app.post('/update', (req, res) => {
         return res.status(400).json({ message: 'Missing required parameters.' })
     }
 
-    const validFields = ['name', 'email', 'phone']
+    const validFields = ['nombre', 'nombre_usuario', 'email']
     if (!validFields.includes(field)) {
         return res.status(400).json({ message: 'Invalid field.' })
     }
 
-    const updateQuery = `UPDATE client SET ?? = ? WHERE client_id = ?`
+    const updateQuery = `UPDATE cliente SET ?? = ? WHERE id_cliente = ?`
 
     db.query(updateQuery, [field, newValue, clientId], (err, result) => {
         if (err) {
@@ -220,14 +220,33 @@ app.post('/update', (req, res) => {
             return res.status(404).json({ message: 'Client not found.' })
         }
 
-        res.status(200).json({ message: 'Information updated successfully.' })
+        res.status(200).json({ message: 'Information updated successfully.', field })
+    })
+})
+
+app.get('/products', (req, res) => {
+
+    const query = 'SELECT * FROM producto'
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al obtener los productos:', err);
+            return res.status(500).json({ message: 'Error al obtener los productos de la base de datos.' })
+        }
+        res.json(results)
     })
 })
 
 
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`)
-
-
-
 })
+
+let products = [
+
+    { id: 1, name: "Straps", price: 4.99, image: "https://suplementosolimpicos.com/wp-content/uploads/2022/08/STRAPS-3.png", description: "", category: "" },
+    { id: 2, name: "Zapatos deportivos", price: 49.99, image: "https://ae01.alicdn.com/kf/S43619d07a6204d7dba3bb3d4be5c7c76T/Zapatillas-de-deporte-de-moda-para-hombre-zapatos-casuales-para-gimnasio-trotar-tenis-entrenador-planos-suaves.jpg", description: "", category: "" },
+    { id: 3, name: "Camiseta de compresion", price: 30.99, image: "https://s7d7.scene7.com/is/image/GTMSportswear/2611TU?qlt=80,0&resMode=sharp2&fmt=png-alpha&hei=500&wid=500&layer=1&op_colorize=181818", description: "", category: "" },
+    { id: 4, name: "Cinturon", price: 70.99, image: "https://gravityec.com/wp-content/uploads/2024/01/CPN.webp", description: "", category: "" },
+    { id: 5, name: "Camiseta Blanca Poison", price: 999.99, image: "https://images-na.ssl-images-amazon.com/images/I/51dRXn4pwdS._AC_UL600_SR600,600_.jpg", description: "", category: "" },
+]
