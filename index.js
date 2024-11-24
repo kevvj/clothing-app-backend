@@ -280,6 +280,82 @@ app.post('/cart', (req, res) => {
     })
 })
 
+app.post('/add-to-cart', (req, res) => {
+    const { id_cliente, id_producto, cantidad } = req.body;
+
+    if (!id_cliente || !id_producto || !cantidad) {
+        return res.status(400).json({ message: 'Faltan parámetros obligatorios: id_cliente, id_producto o cantidad' });
+    }
+
+    const checkQuery = `
+        SELECT * FROM carrito 
+        WHERE id_cliente = ? AND id_producto = ?`;
+
+    db.query(checkQuery, [id_cliente, id_producto], (err, result) => {
+        if (err) {
+            console.error('Error al consultar el carrito:', err)
+            return res.status(500).json({ message: 'Error al consultar el carrito' })
+        }
+
+        if (result.length > 0) {
+            
+            const newCantidad = result[0].cantidad + cantidad
+            const updateQuery = `
+                UPDATE carrito 
+                SET cantidad = ?, fecha_agregado = NOW() 
+                WHERE id_cliente = ? AND id_producto = ?`
+
+            db.query(updateQuery, [newCantidad, id_cliente, id_producto], (err) => {
+                if (err) {
+                    console.error('Error al actualizar el carrito:', err);
+                    return res.status(500).json({ message: 'Error al actualizar el carrito' })
+                }
+                return res.status(200).json({ message: 'Cantidad actualizada en el carrito' })
+            });
+        } else {
+           
+            const insertQuery = `
+                INSERT INTO carrito (id_cliente, id_producto, cantidad, fecha_agregado)
+                VALUES (?, ?, ?, NOW())`
+
+            db.query(insertQuery, [id_cliente, id_producto, cantidad], (err) => {
+                if (err) {
+                    console.error('Error al agregar producto al carrito:', err)
+                    return res.status(500).json({ message: 'Error al agregar producto al carrito' })
+                }
+                return res.status(201).json({ message: 'Producto agregado al carrito' })
+            })
+        }
+    })
+})
+
+app.delete('/remove-from-cart', (req, res) => {
+    const { id_cliente, id_producto } = req.body;
+
+    if (!id_cliente || !id_producto) {
+        return res.status(400).json({ message: 'Faltan parámetros obligatorios: id_cliente o id_producto' });
+    }
+
+    const deleteQuery = `
+        DELETE FROM carrito 
+        WHERE id_cliente = ? AND id_producto = ?`;
+
+    db.query(deleteQuery, [id_cliente, id_producto], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar el producto del carrito:', err)
+            return res.status(500).json({ message: 'Error al eliminar el producto del carrito' })
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Producto no encontrado en el carrito para este cliente' })
+        }
+
+        return res.status(200).json({ message: 'Producto eliminado del carrito con éxito' })
+    });
+});
+
+
+
 
 
 app.listen(port, () => {
