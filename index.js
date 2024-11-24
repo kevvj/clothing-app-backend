@@ -333,7 +333,7 @@ app.delete('/remove-from-cart', (req, res) => {
     const { id_cliente, id_producto } = req.body;
 
     if (!id_cliente || !id_producto) {
-        return res.status(400).json({ message: 'Faltan parámetros obligatorios: id_cliente o id_producto' });
+        return res.status(400).json({ message: 'Faltan parámetros obligatorios: id_cliente o id_producto' })
     }
 
     const deleteQuery = `
@@ -351,8 +351,34 @@ app.delete('/remove-from-cart', (req, res) => {
         }
 
         return res.status(200).json({ message: 'Producto eliminado del carrito con éxito' })
-    });
-});
+    })
+})
+
+app.post('/add-order', (req, res) => {
+    const { id_cliente, id_producto, cantidad, precio_unitario } = req.body
+
+    if (!id_cliente || !id_producto || !cantidad || !precio_unitario) {
+        return res.status(400).json({ message: 'Faltan parámetros obligatorios: id_cliente, id_producto, cantidad o precio_unitario' })
+    }
+
+    const insertQuery = `
+        INSERT INTO pedido (id_cliente, id_producto, cantidad, precio_unitario, fecha_pedido) 
+        VALUES (?, ?, ?, ?, NOW())
+    `
+
+    db.query(insertQuery, [id_cliente, id_producto, cantidad, precio_unitario], (err, result) => {
+        if (err) {
+            console.error('Error al agregar el pedido:', err)
+            return res.status(500).json({ message: 'Error al agregar el pedido en la base de datos', error: err.message })
+        }
+
+        return res.status(201).json({ 
+            message: 'Pedido agregado exitosamente', 
+            orderId: result.insertId 
+        })
+    })
+})
+
 
 
 
