@@ -379,6 +379,49 @@ app.post('/add-order', (req, res) => {
     })
 })
 
+app.post('/get-orders', (req, res) => {
+    const { id_cliente } = req.body
+
+    if (!id_cliente) {
+        return res.status(400).json({ message: 'Se requiere el ID del cliente.' })
+    }
+
+    const query = `
+        SELECT 
+            pedido.id_pedido,
+            pedido.id_producto,
+            producto.nombre AS nombre_producto,
+            pedido.cantidad,
+            pedido.precio_unitario,
+            pedido.fecha_pedido
+        FROM 
+            pedido
+        INNER JOIN 
+            producto 
+        ON 
+            pedido.id_producto = producto.id_producto
+        WHERE 
+            pedido.id_cliente = ?
+        ORDER BY 
+            pedido.fecha_pedido DESC
+    `;
+
+    db.query(query, [id_cliente], (err, results) => {
+        if (err) {
+            console.error('Error al obtener los pedidos:', err);
+            return res.status(500).json({ message: 'Error al obtener los pedidos de la base de datos.' })
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'No se encontraron pedidos para este cliente.' })
+        }
+
+        res.status(200).json({
+            message: 'Pedidos obtenidos con éxito.',
+            orders: results
+        })
+    })
+})
 
 
 
