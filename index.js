@@ -5,6 +5,7 @@ const cors = require('cors')
 const mysql = require('mysql2')
 const multer = require('multer')
 const path = require('path')
+const nodemailer = require('nodemailer')
 const app = express()
 
 
@@ -15,7 +16,7 @@ const db = mysql.createConnection({
     user: 'root',
     password: '',
     database: 'clothingstore'
-});
+})
 
 db.connect((err) => {
     if (err) {
@@ -28,6 +29,10 @@ db.connect((err) => {
 app.use(bodyParser.json())
 app.use(cors())
 
+
+
+
+
 let usuarios = [
     { id: 1, username: "user", password: bcrypt.hashSync("password", 10) },
     { id: 2, username: "user2", password: bcrypt.hashSync("password2", 10) },
@@ -36,9 +41,52 @@ let usuarios = [
 
 const port = 3001;
 
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname)
+    }
+})
+
+const upload = multer({ storage: storage })
+
 app.get('/', (req, res) => {
     res.send('¡Bienvenido a la Api de login y registro!');
 })
+
+app.post('/add-product', upload.single('image'), (req, res) => {
+    const { nombre, descripcion, precio, categoria } = req.body
+    let imagePath = null
+
+    if (req.file) {
+        imagePath = req.file.path.replace(/\\/g, '/')
+    }
+
+    if (!nombre || !descripcion || !precio || !categoria) {
+        return res.status(400).json({ message: 'Faltan datos obligatorios para crear el producto.' })
+    }
+
+    const query = `
+        INSERT INTO producto (nombre, descripcion, precio, categoria, imagen) 
+        VALUES (?, ?, ?, ?, ?)
+    `
+
+    db.query(query, [nombre, descripcion, precio, categoria, imagePath], (err, result) => {
+        if (err) {
+            console.error('Error al agregar el producto:', err)
+            return res.status(500).json({ message: 'Error al agregar el producto en la base de datos.' })
+        }
+
+        res.status(201).json({ 
+            message: 'Producto agregado exitosamente.', 
+            productId: result.insertId
+        })
+    })
+})
+
+
 
 app.post('/user/upload/password/:id', async (req, res) => {
     const id = req.params.id
@@ -147,7 +195,8 @@ app.post('/login', async (req, res) => {
                     name: user.nombre,
                     email: user.email,
                     registration_date: user.fecha_registro,
-                    porfilepic: user.foto_perfil
+                    porfilepic: user.foto_perfil,
+                    user_type: user.tipo_usuario
                 }
                 res.status(200).json({ message: 'Login exitoso.', user: userData })
 
@@ -161,18 +210,11 @@ app.post('/login', async (req, res) => {
     })
 })
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname)
-    }
-})
 
-const upload = multer({ storage: storage })
 
-app.post('/upload', upload.single('file-upload'), (req, res) => {
+
+
+app.post('/upload-img-client', upload.single('file-upload'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No se ha subido ningún archivo.' })
     }
@@ -197,7 +239,64 @@ app.post('/upload', upload.single('file-upload'), (req, res) => {
     })
 })
 
-app.post('/update', (req, res) => {
+app.post('/upload-img-product', upload.single('file-upload'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No se ha subido ninguna imagen.' })
+    }
+
+    const filePath = req.file.path.replace(/\\/g, '/')
+
+    const { productId } = req.body
+
+    if (!productId) {
+        return res.status(400).json({ message: 'Falta el ID del producto.' })
+    }
+
+    
+    const updateQuery = 'UPDATE producto SET imagen = ? WHERE id_producto = ?'
+
+    db.query(updateQuery, [filePath, productId], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar la imagen del producto:', err)
+            return res.status(500).json({ message: 'Error al guardar la imagen del producto en la base de datos.' })
+        }
+
+        res.status(200).json({ message: 'Imagen del producto subida y guardada con éxito.', filePath: filePath })
+    })
+})
+
+app.post('/update-product', (req, res) => {
+    const { productId, field, newValue } = req.body
+
+    if (!productId || !field || !newValue) {
+        return res.status(400).json({ message: 'Faltan parámetros requeridos' })
+    }
+
+    const validFields = ['nombre', 'descripcion', 'precio', 'stock', 'categoria']
+    if (!validFields.includes(field)) {
+        return res.status(400).json({ message: 'Campo no válido' })
+    }
+
+    const updateQuery = `UPDATE producto SET ?? = ? WHERE id_producto = ?`
+
+    db.query(updateQuery, [field, newValue, productId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al actualizar el producto', error: err })
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Producto no encontrado' })
+        }
+
+        res.status(200).json({ message: 'Producto actualizado con éxito', field })
+    })
+})
+
+
+
+
+
+app.post('/update-client', (req, res) => {
     const { clientId, field, newValue } = req.body
 
     if (!clientId || !field || !newValue) {
@@ -422,6 +521,26 @@ app.post('/get-orders', (req, res) => {
         })
     })
 })
+
+app.get('/product/:id', (req, res) => {
+    const { id } = req.params
+
+    const query = 'SELECT * FROM producto WHERE id_producto = ?'
+
+    db.query(query, [id], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el producto:', err);
+            return res.status(500).json({ message: 'Error al obtener el producto de la base de datos.' })
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Producto no encontrado.' })
+        }
+
+        res.status(200).json(results[0])
+    })
+})
+
 
 
 
