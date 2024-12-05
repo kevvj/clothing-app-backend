@@ -173,9 +173,9 @@ app.post('/register', async (req, res) => {
         const FullName = firstName + " " + lastName
         const DateToday = new Date().toISOString().split('T')[0]
 
-        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, direccion, fecha_registro, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        const insertQuery = 'INSERT INTO cliente (nombre_usuario, contraseña, nombre, email, fecha_registro, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?)'
 
-        db.query(insertQuery, [username, hashedPassword, FullName, email, null, DateToday, "comun"], (err, result) => {
+        db.query(insertQuery, [username, hashedPassword, FullName, email, DateToday, "comun"], (err, result) => {
             if (err) {
                 console.error('Error al ejecutar la consulta de inserción:', err.message);
                 return res.status(500).json({ message: 'Error al registrar el usuario', error: err.message });
@@ -213,7 +213,8 @@ app.post('/login', async (req, res) => {
                     email: user.email,
                     registration_date: user.fecha_registro,
                     porfilepic: user.foto_perfil,
-                    user_type: user.tipo_usuario
+                    user_type: user.tipo_usuario,
+                    address: user.direccion
                 }
                 res.status(200).json({ message: 'Login exitoso.', user: userData })
 
@@ -320,7 +321,7 @@ app.post('/update-client', (req, res) => {
         return res.status(400).json({ message: 'Missing required parameters.' })
     }
 
-    const validFields = ['nombre', 'nombre_usuario', 'email']
+    const validFields = ['nombre', 'nombre_usuario', 'email', 'direccion']
     if (!validFields.includes(field)) {
         return res.status(400).json({ message: 'Invalid field.' })
     }
