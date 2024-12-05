@@ -31,14 +31,6 @@ app.use(cors())
 
 
 
-
-
-let usuarios = [
-    { id: 1, username: "user", password: bcrypt.hashSync("password", 10) },
-    { id: 2, username: "user2", password: bcrypt.hashSync("password2", 10) },
-    { id: 3, username: "user3", password: bcrypt.hashSync("password3", 10) },
-]
-
 const port = 3001;
 
 const storage = multer.diskStorage({
@@ -85,6 +77,31 @@ app.post('/add-product', upload.single('image'), (req, res) => {
         })
     })
 })
+
+
+app.post('/delete-product', (req, res) => {
+    const { id_producto } = req.body
+
+    if (!id_producto) {
+        return res.status(400).json({ message: 'Se requiere el ID del producto.' })
+    }
+
+    const deleteQuery = 'DELETE FROM producto WHERE id_producto = ?'
+
+    db.query(deleteQuery, [id_producto], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar el producto:', err);
+            return res.status(500).json({ message: 'Error al eliminar el producto de la base de datos.' })
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Producto no encontrado.' })
+        }
+
+        res.status(200).json({ message: 'Producto eliminado con éxito.' })
+    })
+})
+
 
 
 
@@ -540,6 +557,33 @@ app.get('/product/:id', (req, res) => {
         res.status(200).json(results[0])
     })
 })
+
+app.post('/products-by-category', (req, res) => {
+    const { categoria } = req.body
+
+    if (!categoria) {
+        return res.status(400).json({ message: 'Se requiere la categoría.' })
+    }
+
+    const query = 'SELECT * FROM producto WHERE categoria = ?'
+
+    db.query(query, [categoria], (err, results) => {
+        if (err) {
+            console.error('Error al obtener los productos:', err)
+            return res.status(500).json({ message: 'Error al obtener los productos de la base de datos.' })
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'No se encontraron productos para esta categoría.' })
+        }
+
+        res.status(200).json({
+            message: 'Productos obtenidos con éxito.',
+            products: results
+        })
+    })
+})
+
 
 
 
